@@ -37,3 +37,10 @@ dialog{padding:0;border:0;border-radius:24px;width:min(560px,calc(100% - 32px));
 .discovery-page .provider-card{padding:18px}.discovery-page .form-actions{position:static;background:transparent}.nav button{min-width:0;flex:1}.nav-inner{gap:0}.nav button{font-size:.6875rem}
 @media(max-width:700px){.trip-page .map-panel{order:0}.trip-page .route-map.card{background:white;border:1px solid var(--line)}.route-map .live-map{height:320px}.trip-page .map-panel .map-summary{display:block}.trip-page .day-title{gap:8px}.trip-page .day-title h2{font-size:1rem}.stop-place-line{margin-left:60px}.trip-page .action-bar{flex-wrap:wrap}.trip-page .action-bar .btn{font-size:.75rem}.provider-grid{grid-template-columns:1fr}.chat-bubble{max-width:100%;padding:13px 15px}.chat-conditions summary{font-size:.875rem}.route-map .map-tools{padding:10px}.segmented .btn{padding:7px 9px}.trip-page .map-panel{position:static}.map-legend{gap:8px}}
 #conversation-page fieldset{border:0;padding:0;margin:0;min-width:0}
+
+/* Actual AMap POI matching status and confirmation choices. */
+.stop-place-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-bottom:12px}
+.stop-place-line .hint{flex-basis:100%;overflow-wrap:anywhere}
+.place-matched{background:#e6f4ee;color:#17664c}.place-pending,.place-unchecked{background:#fff1d8;color:#805416}.place-unmatched,.place-error{background:#fce9e4;color:#963d2e}.place-activity{background:#edf0ef;color:#53615c}
+.poi-review-list{max-height:55vh;overflow:auto}.poi-review-item{margin:10px 0;padding:16px}.poi-review-item h3{margin-top:8px}.poi-choice{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.day-title{flex-wrap:wrap;gap:12px}.day-title>.row{flex-wrap:wrap}.ai-draft-item .pill{white-space:normal}

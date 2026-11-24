@@ -1,5 +1,5 @@
-import {uid,validTrip} from './domain.js';
-import {validPlace} from './place-schema.js';
+import {uid,validTrip} from './domain.js?v=0.4.1';
+import {validPlace} from './place-schema.js?v=0.4.1';
 export const daySignature=day=>JSON.stringify(day);
 export function safeDayContext(trip,index){return {title:trip.days[index].title,items:trip.days[index].items.map(({title,time,duration,type,cost})=>({title,time,duration,type,cost}))};}
 export function applyDayRevision(current,index,plan,signature){
@@ -8,7 +8,7 @@ export function applyDayRevision(current,index,plan,signature){
   const old=current.days[index],used=new Set();
   const items=plan.days[0].items.map(next=>{
     const original=old.items.find(x=>x.title===next.title&&!used.has(x.id));if(original)used.add(original.id);
-    return {...next,id:original?.id||uid(),...(original?.note?{note:original.note}:{}),...(original&&validPlace(original.place)?{place:original.place}:{})};
+    return {...next,id:original?.id||uid(),...(original?.note?{note:original.note}:{}),...(validPlace(next.place)?{place:next.place}:original&&validPlace(original.place)?{place:original.place}:{})};
   });
   const updated={...current,days:current.days.map((d,i)=>i===index?{...d,title:plan.days[0].title,items}:d)};
   if(!validTrip(updated))throw new Error('调整结果无法保存，原行程未修改');

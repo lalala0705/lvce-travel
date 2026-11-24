@@ -1,11 +1,12 @@
-import {makeTrip,localDate,dayDate,uid,validTrip,money,toCents} from './domain.js';
+import {makeTrip,localDate,dayDate,uid,validTrip,money,toCents} from './domain.js?v=0.4.1';
 import {getAIStatus,requestAIPlan} from './ai-api.js?v=0.4.0';
 import {requestChat} from './chat-api.js';
 import {validateAIRequest} from './ai-schema.js';
-import {validPlace} from './place-schema.js';
-import {daySignature,safeDayContext,applyDayRevision,summarizeRevision} from './revision.js';
+import {validPlace,needsPlace,placeStatus} from './place-schema.js?v=0.4.1';
+import {matchPlanPlaces,matchingSummary} from './place-matching.js?v=0.4.1';
+import {daySignature,safeDayContext,applyDayRevision,summarizeRevision} from './revision.js?v=0.4.1';
 
-export function createConversation({e,btn,icon,toast,currentTrip,currentDay,rerender,addTrip,replaceTrip}){
+export function createConversation({e,btn,icon,toast,currentTrip,currentDay,rerender,addTrip,replaceTrip,choosePlace}){
   let mode='new',session=null,status=null,checking=false,operation=null,draft=null;
   function fresh(kind){const t=currentTrip();return {mode:kind,tripId:t.id,day:currentDay(),names:t.members.map(m=>m.name),conditions:{city:kind==='adjust'?t.city:'',date:kind==='adjust'?dayDate(t.date,currentDay()):localDate(7),count:kind==='adjust'?1:Math.min(t.days.length,7),people:t.members.length,budgetCents:Math.min(t.budget,100000000),pace:t.pace,preferences:t.preferences},history:[],candidates:[],knownPlaces:[],seed:'',searchMessage:''};}
   function ensure(){if(!session||(mode==='adjust'&&session.tripId!==currentTrip().id))session=fresh(mode);return session;}
@@ -17,9 +18,9 @@ export function createConversation({e,btn,icon,toast,currentTrip,currentDay,rere
     return `<details class="chat-conditions"><summary>出行条件 · ${e(c.city||'城市待确认')} · ${e(c.date)} · ${c.count} 天 · ${c.people} 人</summary><div class="form-grid section-space"><label class="field">城市或出发城市<input name="city" value="${e(c.city)}" maxlength="30" placeholder="还没想好目的地也可以先聊"></label><label class="field">出发日期<input type="date" name="date" value="${e(c.date)}" min="${localDate()}"></label><label class="field">天数<input type="number" name="count" value="${c.count}" min="1" max="7"></label><label class="field">人均预算（元）<input type="number" name="budget" value="${c.budgetCents/100}" min="0.01" max="1000000" step="0.01"></label><label class="field full">同行人（只保存在本机）<input name="members" value="${e(s.names.join('，'))}" maxlength="200"></label><label class="field full">节奏<select name="pace"><option ${c.pace==='慢逛休闲'?'selected':''}>慢逛休闲</option><option ${c.pace==='紧凑打卡'?'selected':''}>紧凑打卡</option></select></label></div></details>`;
   }
   function preview(){
-    if(!draft)return '';const p=draft.plan,total=p.days.flatMap(d=>d.items).reduce((sum,x)=>sum+x.cost,0);let change='';
+    if(!draft)return '';const p=draft.plan,matched=matchingSummary(p),total=p.days.flatMap(d=>d.items).reduce((sum,x)=>sum+x.cost,0);let change='';
     if(draft.mode==='adjust'){const diff=summarizeRevision(currentTrip().days[draft.day],p.days[0]);change=`<div class="note"><div><strong>第 ${draft.day+1} 天调整预览</strong><p>新增 ${diff.added.length} 项 · 移除 ${diff.removed.length} 项 · 时间调整 ${diff.rescheduled.length} 项</p>${diff.removed.length?`<p class="hint">将移除：${e(diff.removed.join('、'))}</p>`:''}<p class="hint">确认后只替换这一天，实际账单和清单不变。</p></div></div>`;}
-    return `<section class="chat-draft card flat" id="chat-draft"><span class="pill">AI 草稿 · 尚未应用</span><h2 class="section-space">${e(p.title)}</h2><p>${e(p.summary)}</p><p class="hint">已列项目人均预计 ${money(total)} · 人均预算 ${money(draft.conditions.budgetCents)}</p>${total>draft.conditions.budgetCents?'<p class="amber">预计费用已超过预算，请继续沟通或编辑后再保存。</p>':''}${change}<div class="ai-draft-days">${p.days.map((d,i)=>`<details ${i===0?'open':''}><summary>${draft.mode==='adjust'?'第 '+(draft.day+1)+' 天':'第 '+(i+1)+' 天'} · ${e(d.title)}</summary>${d.items.map(x=>`<div class="ai-draft-item"><strong class="green">${e(x.time)}</strong><div><h3>${e(x.title)}</h3><p class="hint">${x.duration} 分钟 · 预计 ${money(x.cost)} / 人</p><p>${e(x.note)}</p></div></div>`).join('')}</details>`).join('')}</div>${p.warnings.length?`<ul class="hint">${p.warnings.map(x=>`<li>${e(x)}</li>`).join('')}</ul>`:''}<p class="hint">地点匹配和道路时间仍需在行程地图中确认；不代表天气、开放或安全状态已核实。</p><div class="form-actions">${btn('放弃草稿','chat-discard','secondary')}${btn(draft.mode==='adjust'?'确认应用到第 '+(draft.day+1)+' 天':'保存为新旅行','chat-apply','primary','save')}</div></section>`;
+    return `<section class="chat-draft card flat" id="chat-draft"><span class="pill">AI 草稿 · 尚未应用</span><h2 class="section-space">${e(p.title)}</h2><p>${e(p.summary)}</p><p class="hint">已列项目人均预计 ${money(total)} · 人均预算 ${money(draft.conditions.budgetCents)}</p>${total>draft.conditions.budgetCents?'<p class="amber">预计费用已超过预算，请继续沟通或编辑后再保存。</p>':''}${change}<div class="note"><div><strong>高德匹配 ${matched.matched}/${matched.total}</strong><p class="hint">${matched.pending?'还有 '+matched.pending+' 个地点待确认，未确认的地点不会在地图上标点。':'实际地点已具备地图坐标。'}${matched.activities?'交通与休息项不单独虚构位置。':''}</p></div></div><div class="ai-draft-days">${p.days.map((d,i)=>`<details ${i===0?'open':''}><summary>${draft.mode==='adjust'?'第 '+(draft.day+1)+' 天':'第 '+(i+1)+' 天'} · ${e(d.title)}</summary>${d.items.map((x,j)=>`<div class="ai-draft-item"><strong class="green">${e(x.time)}</strong><div><h3>${e(x.title)}</h3><p class="hint">${x.duration} 分钟 · 预计 ${money(x.cost)} / 人</p><p>${e(x.note)}</p><span class="pill place-${placeStatus(x).kind}">${e(placeStatus(x).label)}</span>${validPlace(x.place)?`<p class="hint">高德：${e(x.place.name)} · ${e(x.place.address)}</p>`:''}${needsPlace(x)?btn(validPlace(x.place)?'核对/更换位置':'确认高德位置','chat-match-place','text','pin',`data-day="${i}" data-item="${j}"`):''}</div></div>`).join('')}</details>`).join('')}</div>${p.warnings.length?`<ul class="hint">${p.warnings.map(x=>`<li>${e(x)}</li>`).join('')}</ul>`:''}<p class="hint">地点匹配和道路时间仍需在行程地图中确认；不代表天气、开放或安全状态已核实。</p><div class="form-actions">${btn('放弃草稿','chat-discard','secondary')}${btn(draft.mode==='adjust'?'确认应用到第 '+(draft.day+1)+' 天':'保存为新旅行','chat-apply','primary','save')}</div></section>`;
   }
   function page(){
     const s=ensure(),canTalk=status?.ready&&status.features?.chat;
@@ -57,7 +58,10 @@ export function createConversation({e,btn,icon,toast,currentTrip,currentDay,rere
         if(mode==='new'){s.names=Array.from({length:s.conditions.people},(_,i)=>s.names[i]||(i===0?'我':'同行者'+(i+1)));}
         if(response.plan){
           const known=s.knownPlaces;response.plan.days.forEach(d=>d.items.forEach(x=>{const p=known.find(p=>p.name===x.title);if(p)x.place=p;}));
-          draft={mode,plan:response.plan,conditions:{...s.conditions},names:[...s.names],tripId:targetId,day:targetDay,signature};
+          if(mode==='adjust')for(const item of response.plan.days[0].items){const old=currentTrip().days[targetDay]?.items.find(x=>x.title===item.title);if(old&&validPlace(old.place)&&!validPlace(item.place))item.place=old.place;}
+          const matchedPlan=await matchPlanPlaces(response.plan,s.conditions.city,{signal:op.signal,onProgress:progress=>{const node=document.querySelector('#chat-status');if(node)node.textContent=`AI 草稿已生成，正在匹配高德 ${progress.done}/${progress.total} · ${progress.title||'整理结果'}`;}});
+          if(op.signal.aborted||operation!==op)return;
+          draft={mode,plan:matchedPlan,conditions:{...s.conditions},names:[...s.names],tripId:targetId,day:targetDay,signature};
         }
       }catch(err){if(!op.signal.aborted&&operation===op)s.history.push({role:'assistant',content:err.message||'本次对话未完成，已有行程未修改。'});}
       finally{if(operation===op){operation=null;rerender();document.querySelector('#chat-draft')?.scrollIntoView({behavior:'smooth',block:'start'});}}
@@ -79,6 +83,7 @@ export function createConversation({e,btn,icon,toast,currentTrip,currentDay,rere
   return {page,mount,start,suspend,handleSubmit(form,intent){if(form.dataset.form!=='conversation')return false;submit(form,intent);return true;},actions:{
     'chat-mode':el=>{start(el.dataset.mode);rerender();},'chat-reset':()=>{start(mode);rerender();},'chat-prompt':el=>{ensure().seed=el.dataset.prompt;rerender();document.querySelector('[name="message"]')?.focus();},
     'chat-place':el=>{const s=ensure(),p=s.candidates[Number(el.dataset.index)];if(!validPlace(p))return;s.seed=`我选「${p.name}」（${p.city} ${p.address}），请围绕这里继续安排，先确认还缺哪些条件。`;if(mode==='new')s.conditions.city=p.city||s.conditions.city;rerender();},
+    'chat-match-place':el=>{const active=draft,item=active?.plan.days[Number(el.dataset.day)]?.items[Number(el.dataset.item)];if(!item)return;choosePlace({title:item.title,city:active.conditions.city,candidates:item.placeMatch?.candidates,onChoose:place=>{if(draft!==active)return;item.place=place;item.placeMatch={status:'matched',query:item.title.slice(0,60),message:'用户已确认高德地点',candidates:[]};rerender();}});},
     'chat-cancel':()=>{suspend();rerender();},'chat-discard':()=>{draft=null;rerender();},'chat-apply':apply,'chat-refresh':()=>mount(true)
   }};
 }
