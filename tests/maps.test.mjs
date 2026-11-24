@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {DatabaseSync} from 'node:sqlite';
 import {createService} from '../backend/tencent/server.mjs';
 import {makeTrip,validTrip,parseBackup,encodeShare,decodeShare} from '../dist/domain.js';
-import {validPlace,placeLink,mapsRequest} from '../dist/maps-api.js';
+import {validPlace,placeLink,mapsRequest,resolveMapCenter} from '../dist/maps-api.js';
 const origin='https://lalala0705.github.io';
 const credentials={jsKey:'a'.repeat(32),webKey:'b'.repeat(32),securityCode:'c'.repeat(32)};
 const example={id:'B123',name:'亲水公园',address:'公园路 1 号',city:'广州市',district:'天河区',location:[113.3,23.1],distance:300,source:'amap',coordinateSystem:'GCJ-02'};
@@ -67,4 +67,13 @@ test('POI backup retains validated coordinates while share strips all POI/locati
 test('frontend map searches omit credentials and report errors without changing trips',async()=>{
   const data=await mapsRequest('search',{body:{city:'广州',keywords:'公园'},fetcher:async(url,options)=>{assert.match(url,/kuaitrip.cn\/lvce-ai\/api\/maps\/search$/);assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');assert.deepEqual(JSON.parse(options.body),{city:'广州',keywords:'公园'});return json({places:[example]});}});assert.equal(data.places.length,1);
   await assert.rejects(()=>mapsRequest('search',{body:{city:'广州',keywords:'公园'},fetcher:async()=>new Response('{}',{status:404})}),/正在准备/);
+});
+
+test('map view centers on confirmed POIs or actual city search data and never a default city',async()=>{
+  assert.deepEqual(await resolveMapCenter('杭州',[{place:example}],{request:()=>assert.fail('confirmed points need no extra search')}),example.location);
+  let calls=0;
+  const request=async(path,{body})=>{calls++;assert.equal(body.city,'定位测试城市');return {places:[example]};};
+  assert.deepEqual(await resolveMapCenter('定位测试城市',[],{request}),example.location);
+  await resolveMapCenter('定位测试城市',[],{request});assert.equal(calls,1);
+  await assert.rejects(()=>resolveMapCenter('不存在的城市',[],{request:async()=>({places:[]})}),/确认一个具体地点/);
 });

@@ -24,3 +24,16 @@ export function loadAMap(config){
 }
 
 export function placeLink(city,item){return item.place&&validPlace(item.place)?`https://uri.amap.com/marker?position=${item.place.location.join(',')}&name=${encodeURIComponent(item.place.name)}&src=lvce&coordinate=gaode&callnative=0`:`https://uri.amap.com/search?keyword=${encodeURIComponent(city+' '+item.title)}&callnative=0`;}
+
+const cityAnchors=new Map();
+export async function resolveMapCenter(city,items,{signal,request=mapsRequest}={}){
+  const matched=items.find(item=>validPlace(item.place));
+  if(matched)return matched.place.location;
+  if(cityAnchors.has(city))return cityAnchors.get(city);
+  const result=await request('search',{body:{city,keywords:'公园'},signal});
+  if(signal?.aborted)throw new DOMException('已取消','AbortError');
+  const anchor=result.places?.find(validPlace);
+  if(!anchor)throw new Error('暂时无法定位到该城市，请先搜索并确认一个具体地点');
+  cityAnchors.set(city,anchor.location);
+  return anchor.location;
+}

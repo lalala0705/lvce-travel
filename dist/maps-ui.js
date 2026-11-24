@@ -1,4 +1,4 @@
-import {mapsRequest,loadAMap,validPlace,placeLink} from './maps-api.js';
+import {mapsRequest,loadAMap,validPlace,placeLink,resolveMapCenter} from './maps-api.js';
 export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,currentTrip,currentDay,onPick}){
   let map=null,mapAbort=null,searchAbort=null,config=null,results=[],targetId=null,focused=null,routeLine=null,locationAttempt=0;
   const message=s=>{const n=document.querySelector('#live-map-status');if(n)n.textContent=s;};
@@ -15,11 +15,12 @@ export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,current
     try{
       config=await mapsRequest('config',{signal:op.signal});if(op.signal.aborted)return;
       if(!config.ready){host.querySelector('.map-placeholder p').textContent='地图服务尚未配置';message(config.message);return;}
-      const AMap=await loadAMap(config);if(op.signal.aborted||!host.isConnected)return;
-      host.replaceChildren();map=new AMap.Map(host,{zoom:12,viewMode:'2D',resizeEnable:true});
-      const t=currentTrip(),items=t.days[currentDay()].items,markers=[];
+      const t=currentTrip(),items=t.days[currentDay()].items;
+      const [AMap,center]=await Promise.all([loadAMap(config),resolveMapCenter(t.city,items,{signal:op.signal})]);if(op.signal.aborted||!host.isConnected)return;
+      host.replaceChildren();map=new AMap.Map(host,{center,zoom:12,viewMode:'2D',resizeEnable:true});
+      const markers=[];
       items.forEach((item,i)=>{if(!validPlace(item.place))return;const badge=document.createElement('div');badge.className='amap-stop-badge';badge.textContent=String(i+1);markers.push(new AMap.Marker({position:item.place.location,title:item.title,content:badge,anchor:'center'}));});
-      if(markers.length){map.add(markers);map.setFitView(markers,false,[45,45,45,45]);}else map.setCity(t.city);
+      if(markers.length){map.add(markers);map.setFitView(markers,false,[45,45,45,45]);}
       message(markers.length?`已确认 ${markers.length} 个高德点位；可查询相邻地点的步行或驾车路线`:'搜索并确认地点后，在这里显示真实点位');
     }catch(error){if(op.signal.aborted)return;message(error.message||'地图连接暂不可用');if(host.isConnected){host.replaceChildren();const n=document.createElement('p');n.className='map-placeholder';n.textContent='地图暂不可用，下方仍可使用外部导航';host.append(n);}}
   }
