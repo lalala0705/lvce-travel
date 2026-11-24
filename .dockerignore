@@ -1,0 +1,12 @@
+**
+!package.json
+!dist/
+!dist/ai-schema.js
+!backend/
+!backend/worker/
+!backend/worker/index.js
+!backend/drizzle/
+!backend/drizzle/0000_ai.sql
+!backend/tencent/
+!backend/tencent/Dockerfile
+!backend/tencent/server.mjs
