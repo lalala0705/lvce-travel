@@ -13,5 +13,7 @@ jobs:
         with:
           node-version: 22
       - run: npm test
+      - name: Test secure server key configuration
+        run: python3 -m unittest discover -s backend/tencent -p 'test_*.py'
       - run: npm run build
       - run: npm --prefix backend run build

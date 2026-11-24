@@ -15,3 +15,9 @@ bash backend/tencent/install.sh "$PWD"
 备份位于 `/opt/lvce-ai/backups`。回退 Nginx：将对应备份复制回脚本报告的实际配置文件，执行 `nginx -t && systemctl reload nginx`。回退容器：`docker rm -f lvce-ai` 后使用安装前保留的 `lvce-ai:previous` 镜像和相同 env/volume/端口重新启动。若安装前无容器，直接移除新容器即可；不要删除 `/opt/lvce-ai/data`。
 
 腾讯云防火墙只需沿用 80/443，不要开放 8787。备案和 HTTPS 证书有效性需由域名管理员确认。脚本不调整旧 PostgreSQL 公网端口或旧服务。
+
+## 更新无效或过期的 Key
+
+在服务器交互终端运行 `python3 backend/tencent/configure-key.py "$PWD"`。输入会隐藏，去除首尾空格后，仅向固定 `https://api.deepseek.com/models` 验证授权，不调用付费生成。验证不通过不修改现有文件；通过后以 0600 权限原子保存并运行部署脚本应用配置。应用失败恢复原配置文件。不要在命令参数、聊天或截图中填写 Key。
+
+密钥更新工具验证：`python3 -m unittest discover -s backend/tencent -p 'test_*.py'`。
