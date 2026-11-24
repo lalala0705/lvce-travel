@@ -1,6 +1,6 @@
 import {validateAIRequest, normalizeAIPlan} from './ai-schema.js';
-// Set to the verified independent backend origin after deployment.
-export const AI_BASE='';
+// Verified Tencent Cloud backend; provider credentials remain on the server.
+export const AI_BASE='https://kuaitrip.cn/lvce-ai';
 export const AI_ADMIN_URL='';
 export async function getAIStatus(fetcher=fetch,base=AI_BASE) {
   if(!base)return {ready:false,model:'DeepSeek',message:'AI 后端正在迁移部署，本地模板仍可使用',maxDays:7};
