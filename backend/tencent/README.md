@@ -21,3 +21,13 @@ bash backend/tencent/install.sh "$PWD"
 在服务器交互终端运行 `python3 backend/tencent/configure-key.py "$PWD"`。输入会隐藏，去除首尾空格后，仅向固定 `https://api.deepseek.com/models` 验证授权，不调用付费生成。验证不通过不修改现有文件；通过后以 0600 权限原子保存并运行部署脚本应用配置。应用失败恢复原配置文件。不要在命令参数、聊天或截图中填写 Key。
 
 密钥更新工具验证：`python3 -m unittest discover -s backend/tencent -p 'test_*.py'`。
+
+## 高德地图
+
+在高德控制台准备三个值：Web端（JS API）Key、该 Key 对应的安全密钥 securityJsCode、Web服务 Key。JS Key 域名白名单允许 `lalala0705.github.io`；若 Web 服务 Key 设置 IP 白名单，允许这台服务器的实际公网出口 IP。服务权限和用量以高德控制台为准，不自动购买授权。
+
+从仓库最新代码启动 `python3 backend/tencent/configure-maps.py "$PWD"`，等每个隐藏输入提示出现再粘贴对应值。工具先验证 Web 服务 Key 的 POI 搜索，再合并配置并部署，保留 DeepSeek Key；JS Key 和安全密钥需在网页实际加载后验证。若仍显示 Shell 提示符或报错，不要粘贴密钥。
+
+环境变量为 `AMAP_JS_KEY`、`AMAP_SECURITY_CODE`、`AMAP_WEB_KEY`。只有 JS Key 通过 `/api/maps/config` 返回给指定网页 Origin，另两项不返回。`/api/maps/search` 支持城市文本与自愿提交 GPS 的周边搜索；GPS 通过高德转换为 GCJ-02 后查询。`/api/maps/route` 支持步行/驾车。`/_AMapService/` 只代理列明的 SDK 地图样式、行政区、地理编码和地点相关路径，目标为固定高德域名。
+
+接口配额与 AI 独立持久保存。REST 每天 1000 次、每 IP 每小时 60 次；SDK 代理每天 2000 次、每 IP 每小时 300 次。无请求正文或精确位置日志。候选地点、GPS 不在服务器长期保存；POI 信息只有用户确认保存后才进入本机旅行记录。前端按需加载地图，SDK 和地图瓦片请求仍由高德处理。

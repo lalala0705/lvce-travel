@@ -4,8 +4,9 @@ import {mkdirSync,readFileSync,writeFileSync,existsSync,chmodSync} from 'node:fs
 import {randomBytes} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {createWorker,sealKey} from '../worker/index.js';
+import {createMaps} from './maps.mjs';
 
-export async function createService({directory,apiKey='',fetcher=fetch}={}){
+export async function createService({directory,apiKey='',maps={},fetcher=fetch}={}){
   mkdirSync(directory,{recursive:true,mode:0o700});
   const saltPath=directory+'/master-key';
   if(!existsSync(saltPath))writeFileSync(saltPath,randomBytes(32).toString('base64'),{mode:0o600,flag:'wx'});
@@ -24,8 +25,10 @@ export async function createService({directory,apiKey='',fetcher=fetch}={}){
     await DB.prepare("INSERT INTO ai_settings(name,value,updated_at) VALUES('deepseek-key',?,?)").bind(await sealKey(apiKey,env),new Date().toISOString()).run();
   }
   const worker=createWorker(fetcher);
+  const mapService=createMaps({db,salt:env.ENCRYPTION_KEY,...maps,fetcher});
   return {close:()=>db.close(),async fetch(request){
     const path=new URL(request.url).pathname;
+    if(path.startsWith('/api/maps/')||path.startsWith('/_AMapService/'))return mapService.fetch(request);
     if(!['/api/status','/api/generate'].includes(path))return new Response(JSON.stringify({message:'未找到此接口'}),{status:404,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
     return worker.fetch(request,env);
   }};
@@ -38,7 +41,7 @@ export function createHTTPServer(service){
     try{
       const headers=new Headers();
       // This port is reachable only through the host's Nginx. Nginx overwrites X-Real-IP.
-      for(const name of ['content-type','origin','content-length'])if(req.headers[name])headers.set(name,req.headers[name]);
+      for(const name of ['content-type','origin','content-length','referer'])if(req.headers[name])headers.set(name,req.headers[name]);
       headers.set('CF-Connecting-IP',String(req.headers['x-real-ip']||req.socket.remoteAddress));
       const body=[];let size=0;
       for await(const chunk of req){size+=chunk.length;if(size>16000){res.writeHead(413,{'Content-Type':'application/json'});res.end('{"message":"请求内容过长"}');return;}body.push(chunk);}
@@ -51,7 +54,7 @@ export function createHTTPServer(service){
   return server;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
-  const service=await createService({directory:process.env.DATA_DIR||'/data',apiKey:process.env.DEEPSEEK_API_KEY||''});
+  const service=await createService({directory:process.env.DATA_DIR||'/data',apiKey:process.env.DEEPSEEK_API_KEY||'',maps:{jsKey:process.env.AMAP_JS_KEY||'',webKey:process.env.AMAP_WEB_KEY||'',securityCode:process.env.AMAP_SECURITY_CODE||''}});
   const server=createHTTPServer(service);
   server.listen(Number(process.env.PORT||8787),'0.0.0.0',()=>console.log('Lvce AI listening on port 8787'));
   for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(()=>{service.close();process.exit(0);}));

@@ -12,3 +12,13 @@ dialog{padding:0;border:0;border-radius:24px;width:min(560px,calc(100% - 32px));
 @media(max-width:700px){.page-head>.row{gap:2px}.page-head>.row>.btn{font-size:.75rem;padding:9px 10px;min-height:38px}.page-head>.row>.btn .icon{width:17px;height:17px}.page-head>.row>.icon-btn{width:32px}.page-head:has(>.row) h1{font-size:1.45rem}.page-head:has(>.row) p{font-size:.75rem}.ai-service-note{align-items:flex-start}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 @media print{.nav,.aside,.topbar,.action-bar,.icon-btn,.btn,.banner-sample,dialog,#toast{display:none!important}.main{margin:0;padding:0}.map-panel{position:static}.layout{display:block}.stop{break-inside:avoid}.card{box-shadow:none}.map-art{max-height:200px}.page-head{margin-top:0}body{background:#fff}}
+
+/* Real map view; schematic illustrations remain labelled in the itinerary overview. */
+.live-map{height:400px;min-height:300px;position:relative;background:#eef3e7;overflow:hidden;border-radius:18px 18px 0 0}
+.map-placeholder{display:flex;min-height:300px;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:24px;text-align:center;color:#64796b}
+.amap-stop-badge{width:30px;height:30px;border:3px solid white;border-radius:50%;background:#16745c;color:white;display:grid;place-items:center;font:bold 14px system-ui;box-shadow:0 2px 8px #0003}
+.route-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px;border-top:1px solid #e3eae1;padding-top:12px}
+.route-actions p{flex-basis:100%;margin:0}.nearby-entry{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 0}
+#maps-results{max-height:55vh;overflow:auto}#maps-results h3{margin-top:10px}#maps-results p{overflow-wrap:anywhere}
+@media(max-width:700px){.live-map{height:340px}.nearby-entry{align-items:flex-start;flex-direction:column}.nearby-entry .btn{width:100%}}
+.map-page .map-summary{display:block}

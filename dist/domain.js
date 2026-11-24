@@ -1,3 +1,4 @@
+import {validPlace} from './place-schema.js';
 export const uid = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 export const money = cents => new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 }).format(cents / 100);
 export function toCents(input) {
@@ -80,7 +81,7 @@ export function validTrip(t) {
   if (!t||!str(t.id,100)||!str(t.city,30)||!t.city.trim()||!str(t.title,80)||!validateDate(t.date)||!Number.isSafeInteger(t.budget)||t.budget<=0||t.budget>9999999999||!str(t.pace,30)||!array(t.preferences,10)||!t.preferences.every(x=>str(x,30))) return false;
   if (!array(t.members,12)||!t.members.length||!t.members.every(m=>m&&str(m.id,100)&&str(m.name,20)&&m.name.trim())||new Set(t.members.map(m=>m.id)).size!==t.members.length) return false;
   const ids=new Set(t.members.map(m=>m.id));
-  if (!array(t.days,30)||!t.days.length||!t.days.every(d=>d&&str(d.id,100)&&str(d.title,80)&&array(d.items,50)&&d.items.every(x=>x&&str(x.id,100)&&str(x.title,80)&&x.title.trim()&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.time)&&str(x.type,20)&&Number.isInteger(x.duration)&&x.duration>=5&&x.duration<=720&&Number.isSafeInteger(x.cost)&&x.cost>=0&&x.cost<=9999999999&&str(x.note,500)))) return false;
+  if (!array(t.days,30)||!t.days.length||!t.days.every(d=>d&&str(d.id,100)&&str(d.title,80)&&array(d.items,50)&&d.items.every(x=>x&&str(x.id,100)&&str(x.title,80)&&x.title.trim()&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.time)&&str(x.type,20)&&Number.isInteger(x.duration)&&x.duration>=5&&x.duration<=720&&Number.isSafeInteger(x.cost)&&x.cost>=0&&x.cost<=9999999999&&str(x.note,500)&&(x.place===undefined||validPlace(x.place))))) return false;
   if (!array(t.expenses,2000)||!t.expenses.every(e=>e&&str(e.id,100)&&str(e.title,80)&&str(e.type,20)&&validateDate(e.date)&&Number.isSafeInteger(e.cents)&&e.cents>0&&e.cents<=9999999999&&ids.has(e.payer)&&array(e.participants,12)&&e.participants.length&&e.participants.every(id=>ids.has(id))&&new Set(e.participants).size===e.participants.length)) return false;
   if (!array(t.checklist,200)||!t.checklist.every(x=>x&&str(x.id,100)&&str(x.title,80)&&str(x.note,500)&&str(x.category,20)&&typeof x.done==='boolean')) return false;
   if (!array(t.favorites,100)||!t.favorites.every(x=>x&&str(x.id,100)&&str(x.title,80)&&str(x.type,20)&&str(x.note,500))) return false;

@@ -10,3 +10,4 @@
 !backend/tencent/
 !backend/tencent/Dockerfile
 !backend/tencent/server.mjs
+!backend/tencent/maps.mjs

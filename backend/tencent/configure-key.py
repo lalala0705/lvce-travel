@@ -51,11 +51,18 @@ def atomic_write(path, contents):
             os.unlink(temporary)
 
 
+def merge_environment(previous, updates):
+    lines = (previous or b'').decode('utf-8').splitlines()
+    retained = [line for line in lines if line.split('=', 1)[0] not in updates]
+    retained.extend(name + '=' + value for name, value in updates.items())
+    return ('\n'.join(retained) + '\n').encode('utf-8')
+
+
 def configure(key, source, env_path=Path('/opt/lvce-ai/service.env'), opener=urllib.request.urlopen,
               runner=subprocess.run):
     key = validate_key(key, opener)
     previous = env_path.read_bytes() if env_path.exists() else None
-    atomic_write(env_path, ('DEEPSEEK_API_KEY=' + key + '\n').encode('ascii'))
+    atomic_write(env_path, merge_environment(previous, {'DEEPSEEK_API_KEY': key}))
     try:
         print('密钥验证通过，正在应用配置；不会调用付费生成。', flush=True)
         result = runner(['bash', str(source / 'backend/tencent/install.sh'), str(source)], check=False)
@@ -69,13 +76,13 @@ def configure(key, source, env_path=Path('/opt/lvce-ai/service.env'), opener=url
         raise
 
 
-def read_hidden_key():
+def read_hidden_key(prompt='粘贴新的 DeepSeek API Key（输入不显示），然后回车：'):
     # getpass opens the controlling terminal as a raw descriptor, or securely uses
     # an available PTY stdin. Text-mode r+ cannot open non-seekable terminals.
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error', getpass.GetPassWarning)
-            return getpass.getpass('粘贴新的 DeepSeek API Key（输入不显示），然后回车：')
+            return getpass.getpass(prompt)
     except (OSError, getpass.GetPassWarning):
         raise ConfigurationError('无法安全隐藏输入，已停止；不要在 Shell 提示符下粘贴密钥。') from None
 
