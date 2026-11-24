@@ -69,22 +69,24 @@ def configure(key, source, env_path=Path('/opt/lvce-ai/service.env'), opener=url
         raise
 
 
+def read_hidden_key():
+    # getpass opens the controlling terminal as a raw descriptor, or securely uses
+    # an available PTY stdin. Text-mode r+ cannot open non-seekable terminals.
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', getpass.GetPassWarning)
+            return getpass.getpass('粘贴新的 DeepSeek API Key（输入不显示），然后回车：')
+    except (OSError, getpass.GetPassWarning):
+        raise ConfigurationError('无法安全隐藏输入，已停止；不要在 Shell 提示符下粘贴密钥。') from None
+
+
 def main():
     if os.geteuid() != 0:
         raise ConfigurationError('请使用 root 执行。')
     source = Path(sys.argv[1] if len(sys.argv) > 1 else '/opt/lvce-ai-source').resolve()
     if not (source / 'backend/tencent/install.sh').is_file() or not Path('/opt/lvce-ai').is_dir():
         raise ConfigurationError('未找到现有部署，请先完成服务器安装。')
-    # Fail closed if hidden terminal input is unavailable; never fall back to echoed stdin.
-    try:
-        with open('/dev/tty', 'r+') as tty:
-            if not tty.isatty():
-                raise OSError()
-            with warnings.catch_warnings():
-                warnings.simplefilter('error', getpass.GetPassWarning)
-                key = getpass.getpass('粘贴新的 DeepSeek API Key（输入不显示），然后回车：', stream=tty)
-    except (OSError, getpass.GetPassWarning):
-        raise ConfigurationError('无法安全隐藏输入，请在服务器交互终端执行。') from None
+    key = read_hidden_key()
     configure(key, source)
     print('密钥已验证并应用。请只发送最终状态，不要发送密钥。')
 

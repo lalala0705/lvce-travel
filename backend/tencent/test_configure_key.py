@@ -1,6 +1,14 @@
 import contextlib
 import importlib.util
 import io
+import os
+import pty
+import select
+import signal
+import subprocess
+import sys
+import termios
+import time
 from pathlib import Path
 import stat
 import tempfile
@@ -49,6 +57,53 @@ class KeySetupTests(unittest.TestCase):
             with self.assertRaises(setup.ConfigurationError):
                 setup.configure(KEY, Path(directory), path, self.accepted, lambda *a, **kw: types.SimpleNamespace(returncode=1))
             self.assertEqual(path.read_text(), 'old-settings')
+
+
+class TerminalInputTests(unittest.TestCase):
+    def test_real_controlling_terminal_hides_input_and_restores_echo(self):
+        pid, terminal = pty.fork()
+        if pid == 0:
+            try:
+                value = setup.read_hidden_key()
+                print('INPUT_OK' if value == KEY else 'INPUT_BAD', flush=True)
+            finally:
+                os._exit(0)
+        output = b''
+        deadline = time.monotonic() + 10
+        try:
+            while '然后回车：'.encode() not in output:
+                if time.monotonic() >= deadline:
+                    self.fail('Hidden input prompt did not appear')
+                if select.select([terminal], [], [], 0.2)[0]:
+                    output += os.read(terminal, 8192)
+            self.assertFalse(termios.tcgetattr(terminal)[3] & termios.ECHO)
+            os.write(terminal, (KEY + '\n').encode())
+            while b'INPUT_OK' not in output:
+                if time.monotonic() >= deadline:
+                    self.fail('Hidden input did not finish')
+                if select.select([terminal], [], [], 0.2)[0]:
+                    output += os.read(terminal, 8192)
+            self.assertNotIn(KEY.encode(), output)
+            self.assertTrue(termios.tcgetattr(terminal)[3] & termios.ECHO)
+        finally:
+            os.close(terminal)
+            os.kill(pid, signal.SIGTERM)
+            os.waitpid(pid, 0)
+
+    def test_non_terminal_input_stops_without_reading_or_echoing_secret(self):
+        script = """import importlib.util
+spec=importlib.util.spec_from_file_location('setup',%r)
+m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+try:
+ m.read_hidden_key()
+except m.ConfigurationError:
+ print('STOPPED_SAFELY')
+""" % str(Path(__file__).with_name('configure-key.py').resolve())
+        result = subprocess.run([sys.executable, '-c', script], input=KEY, text=True,
+                                capture_output=True, start_new_session=True, timeout=5)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('STOPPED_SAFELY', result.stdout)
+        self.assertNotIn(KEY, result.stdout + result.stderr)
 
 if __name__ == '__main__':
     unittest.main()
