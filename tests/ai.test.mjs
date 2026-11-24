@@ -82,12 +82,12 @@ test('upstream errors, secret-bearing provider bodies and truncated JSON are not
 });
 test('frontend sends no provider key or names and validates normalized server results',async()=>{
   const plan=normalizeAIPlan(sample(),input);let sent;
-  const r=await requestAIPlan({...input,members:['private-name'],key:fakeKey},{fetcher:async(url,options)=>{sent=JSON.parse(options.body);assert.equal(options.credentials,'omit');assert.equal(options.headers.Authorization,undefined);return response({plan,model:'test-model'});}});
+  const r=await requestAIPlan({...input,members:['private-name'],key:fakeKey},{base:'https://ai.example',fetcher:async(url,options)=>{sent=JSON.parse(options.body);assert.equal(options.credentials,'omit');assert.equal(options.headers.Authorization,undefined);return response({plan,model:'test-model'});}});
   assert.equal(r.title,sample().title);assert.equal(JSON.stringify(sent).includes(fakeKey),false);assert.equal(JSON.stringify(sent).includes('private-name'),false);
 });
 test('frontend cancellation aborts the request and never retries',async()=>{
   const controller=new AbortController();let calls=0;
-  const promise=requestAIPlan(input,{signal:controller.signal,fetcher:async(url,opts)=>{calls++;return new Promise((resolve,reject)=>opts.signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}));}});
+  const promise=requestAIPlan(input,{base:'https://ai.example',signal:controller.signal,fetcher:async(url,opts)=>{calls++;return new Promise((resolve,reject)=>opts.signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}));}});
   controller.abort();await assert.rejects(promise,err=>err.name==='AbortError');assert.equal(calls,1);
 });
 test('public service status contains no credential',async()=>{

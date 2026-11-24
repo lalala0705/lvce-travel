@@ -1,20 +1,8 @@
-# 旅策 AI 服务
+# 旅策 AI 后端迁移说明
 
-入口：`worker/index.js`。共享请求和结果验证器：`../dist/ai-schema.js`。
+此目录保存统一 AI 服务的初版实现与测试。由于托管平台已调整，当前不向前端提供服务，部署适配尚待完成。
 
-构建：在主仓库运行 `npm --prefix backend run build`，输出无依赖 Worker ESM：`backend/dist/server/index.js`。
+后端的输入校验、固定 DeepSeek 调用、整数费用、时间冲突检查及 D1 原子配额逻辑可复用。当前管理员身份适配依赖旧托管平台的可信认证头，不能直接迁移使用；新平台需配置受保护的服务端环境变量，不向普通网页用户索取 API Key。
 
-Sites 托管配置：`.openai/hosting.json` 中 `d1: "DB"` 声明 D1 绑定；`drizzle/` 中的不可变迁移由部署系统应用。不要在请求处理时建表。
+不要将后端文件作为 GitHub Pages 静态资源发布，不要在任何源文件或测试中填入真实 Key。前端 `AI_BASE` 在独立后端通过验证前保持为空。
 
-运行时 Secret：`ENCRYPTION_KEY`（随机 32 字节 Base64）、`ADMIN_EMAIL`（已确认的管理员邮箱）、可选 `AI_DAILY_LIMIT` 和 `AI_HOURLY_IP_LIMIT`。不要将真实值提交到 GitHub。
-
-API：
-
-- `GET /api/status`：公开、不含密钥的服务状态。
-- `POST /api/generate`：校验来源、输入、重复提交、配额后调用固定 DeepSeek API。
-- `GET /admin`：使用平台管理的 ChatGPT 登录，仅允许管理员访问密钥配置表单。
-- `POST /api/admin/key`：同源且管理员身份下验证、加密保存 Key；响应不含 Key。
-
-生成接口不要求网页用户登录，但使用 D1 原子 UPSERT 限制全站日请求量。Origin 不是身份凭证，勿将其作为唯一的费用保护。用户取消后，已到达模型的请求仍可能计费。后端不保存用户行程或模型完整响应。
-
-密钥配置使用平台注入的认证用户信息与服务端管理员白名单；不能信任公网绕过 Sites dispatcher 直接向 Worker 注入认证头。迁移到其他托管平台时需重新实现可信管理员认证。

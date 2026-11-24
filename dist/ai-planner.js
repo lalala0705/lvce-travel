@@ -1,6 +1,6 @@
 import {makeTrip,localDate,uid,validTrip,money,toCents} from './domain.js';
 import {validateAIRequest} from './ai-schema.js';
-import {getAIStatus,requestAIPlan,AI_ADMIN_URL} from './ai-api.js';
+import {getAIStatus,requestAIPlan} from './ai-api.js';
 
 export function createAIPlanner({sheet,openSheet,btn,icon,e,field,select,toast,currentTrip,addTrip,hasRoom}) {
   let status=null,checking=false,operation=null,draft=null,lastInput=null;
@@ -36,7 +36,7 @@ export function createAIPlanner({sheet,openSheet,btn,icon,e,field,select,toast,c
     const t=draft,g=t.generation,total=t.days.flatMap(d=>d.items).reduce((sum,i)=>sum+i.cost,0);
     openSheet('先看看，这份旅行合不合心意',`<div class="ai-draft-header"><span class="pill">AI 草稿 · 尚未保存</span><h3>${e(t.title)}</h3><p class="muted">${e(g.summary||'按你的出行条件安排的旅行建议。')}</p><p class="hint">${t.days.length} 天 · ${t.members.length} 人 · 已列项目人均预计 ${money(total)}</p></div>${total>t.budget?`<div class="note"><strong class="amber">已列项目预计费用超过人均预算 ${money(total-t.budget)}，保存前请核对。</strong></div>`:''}<div class="ai-draft-days">${t.days.map((d,i)=>`<details ${i===0?'open':''}><summary>第 ${i+1} 天 · ${e(d.title)} <span class="count-badge">${d.items.length} 项</span></summary>${d.items.map(x=>`<div class="ai-draft-item"><strong class="green">${e(x.time)}</strong><div><h3>${e(x.title)}</h3><p>${e(x.note)}</p><span class="hint">${e(x.type)} · ${x.duration} 分钟 · 预计 ${money(x.cost)} / 人</span></div></div>`).join('')}</details>`).join('')}</div>${g.warnings.length?`<div class="note section-space"><div><strong>出发前，再核对一下</strong><ul>${g.warnings.map(x=>`<li>${e(x)}</li>`).join('')}</ul></div></div>`:''}<p class="hint section-space">DeepSeek AI 建议，未实时核实门票、天气和营业时间。预估可能不包含住宿或往返大交通；保存后可继续编辑。</p><div class="form-actions">${btn('放弃草稿','close')}${btn('保存为新旅行','ai-save','primary','save')}</div>`);
   }
-  function service(){openSheet('AI 行程服务',`<div class="note">${icon('sparkles')}<div><strong>DeepSeek 统一后端</strong><p id="ai-service-message" class="hint">${e(serviceCopy())}</p></div></div><div class="dialog-copy section-space"><p>用户无需提供 API Key。行程条件通过旅策后端提交给 DeepSeek，成员姓名和账单保留在本机。</p><p>单次最多 7 天；全站每日试用次数与访问频率由服务端限制。管理员配置后，回到这里刷新状态即可使用。</p></div><div class="form-actions">${btn('刷新状态','ai-refresh','soft')}${btn('知道了','close','primary')}</div><p class="hint section-space"><a href="${e(AI_ADMIN_URL)}" target="_blank" rel="noopener noreferrer">管理员配置入口</a>（仅服务创建者可登录管理）</p>`);checkStatus();}
+  function service(){openSheet('AI 行程服务',`<div class="note">${icon('sparkles')}<div><strong>DeepSeek 统一后端</strong><p id="ai-service-message" class="hint">${e(serviceCopy())}</p></div></div><div class="dialog-copy section-space"><p>用户无需提供 API Key。行程条件通过旅策后端提交给 DeepSeek，成员姓名和账单保留在本机。</p><p>单次最多 7 天；全站每日试用次数与访问频率由服务端限制。管理员配置后，回到这里刷新状态即可使用。</p></div><div class="form-actions">${btn('刷新状态','ai-refresh','soft')}${btn('知道了','close','primary')}</div><p class="hint section-space">管理员在独立后端的部署平台配置密钥，普通用户无需填写。</p>`);checkStatus();}
   sheet.addEventListener('close',()=>{operation?.controller.abort();operation=null;draft=null;});
   return {
     actions:{'ai-start':planner,'ai-refresh':checkStatus,'ai-service':service,'ai-cancel':()=>{operation?.controller.abort();operation=null;sheet.close();toast('已取消生成，已有旅行未修改');},'ai-save':()=>{if(!draft)return;if(!hasRoom()){toast('最多保存 30 份旅行，请先整理已有计划');return;}const t=draft;draft=null;addTrip(t);sheet.close();}},
