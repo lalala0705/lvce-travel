@@ -1,13 +1,49 @@
+import {routeScope,routeKey,checkRoute,dayColors} from './route-check.js';
 import {mapsRequest,loadAMap,validPlace,placeLink,resolveMapCenter} from './maps-api.js?v=0.3.1';
-export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,currentTrip,currentDay,onPick}){
-  let map=null,mapAbort=null,searchAbort=null,config=null,results=[],targetId=null,focused=null,routeLine=null,locationAttempt=0;
+export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,currentTrip,currentDay,onPick,rerender}){
+  let map=null,mapAbort=null,searchAbort=null,config=null,results=[],targetId=null,focused=null,locationAttempt=0,mapScope='day',mode='driving',routeData=new Map(),lines=[],calculating=false,calculationVersion=0;
   const message=s=>{const n=document.querySelector('#live-map-status');if(n)n.textContent=s;};
-  function dispose(){mapAbort?.abort();mapAbort=null;map?.destroy();map=null;routeLine=null;}
+  function dispose(){calculationVersion++;mapAbort?.abort();mapAbort=null;map?.destroy();map=null;lines=[];calculating=false;}
   function cancelSearch(){locationAttempt++;focused=null;searchAbort?.abort();searchAbort=null;results=[];}
   sheet.addEventListener('close',cancelSearch);
-  function page(t,index,tabs){
-    const items=t.days[index].items;
-    return `<section class="map-page"><div class="page-head"><div><h1>沿着期待，慢慢走</h1><p class="muted">${e(t.city)} · 第 ${index+1} 天</p></div>${btn('搜索地点','maps-search','soft','pin')}</div>${tabs}<div class="layout"><div class="map-panel"><div class="card flat"><div id="live-map" class="live-map" aria-label="高德地图"><div class="map-placeholder">${icon('pin')}<p>正在准备地图…</p></div></div><div class="map-summary"><p id="live-map-status" role="status">正在检查地图服务…</p>${btn('重新加载地图','maps-reload','text')}</div></div><div class="note section-space"><p>搜索并确认具体地点后显示真实点位。路线需单独查询；未查询时不显示连线和距离。地图数据不代表开放状态或户外活动安全结论。</p></div></div><div class="spot-list">${items.length?items.map((x,i)=>`<div class="card flat"><div class="row"><span class="count-badge">${i+1}</span><div style="flex:1"><h3>${e(x.title)}</h3><p class="hint">${x.place&&validPlace(x.place)?e(x.place.address):'尚未匹配具体地图地点'}</p></div><a class="btn soft" href="${e(placeLink(t.city,x))}" target="_blank" rel="noopener noreferrer">高德打开</a></div><div class="form-actions">${btn(x.place?'重新匹配地点':'在地图上确认','maps-match','text','pin',`data-id="${e(x.id)}"`)}</div>${i>0&&validPlace(items[i-1].place)&&validPlace(x.place)?`<div class="route-actions"><span class="hint">从上一站出发</span>${btn('步行','maps-route','soft','',`data-index="${i}" data-mode="walking"`)}${btn('驾车','maps-route','soft','',`data-index="${i}" data-mode="driving"`)}<p class="hint" id="route-${i}" role="status"></p></div>`:''}</div>`).join(''):'<div class="empty"><strong>先找一个想去的地方</strong><p>搜索公园、步道、亲水景区，确认后加入行程。</p></div>'}</div></div></section>`;
+  function panel(t,index){
+    const view=routeScope(t,mapScope,index),known=view.points.length-view.missing.length;
+    return `<section class="route-map card flat"><div class="map-tools"><div class="segmented" role="group" aria-label="地图范围">${btn('当天线路','maps-scope',mapScope==='day'?'primary':'secondary','',`data-scope="day"`)}${btn('整体旅行','maps-scope',mapScope==='all'?'primary':'secondary','',`data-scope="all"`)}</div><div class="segmented" role="group" aria-label="交通方式">${btn('驾车','maps-mode',mode==='driving'?'soft':'text','',`data-mode="driving"`)}${btn('步行','maps-mode',mode==='walking'?'soft':'text','',`data-mode="walking"`)}</div></div><div id="live-map" class="live-map" aria-label="旅行真实路线地图"><div class="map-placeholder">${icon('pin')}<p>正在准备地图…</p></div></div><div class="map-summary"><p id="live-map-status" role="status">${known}/${view.points.length} 个地点已确认，正在加载地图…</p><div class="map-legend">${(mapScope==='all'?t.days.map((_,i)=>i):[index]).map(i=>`<span><i style="background:${dayColors[i%dayColors.length]}"></i>第 ${i+1} 天</span>`).join('')}</div><p class="hint">标记为「天数-顺序」，灰色虚线为跨天交通。道路线路需查询后显示，未确认地点不绘制虚构连线。</p><div class="form-actions">${btn('显示道路线路','maps-calculate','soft','pin')}${btn('校验合理性','maps-audit','secondary','check')}</div>${btn('重新加载地图','maps-reload','text')}</div></section>`;
+  }
+  function drawLines(){
+    if(!map||!globalThis.AMap)return;
+    if(lines.length)map.remove(lines);lines=[];
+    for(const segment of routeScope(currentTrip(),mapScope,currentDay()).segments){
+      if(!segment.known)continue;const route=routeData.get(routeKey(segment,mode));if(!route||route.error||route.polyline?.length<2)continue;
+      lines.push(new globalThis.AMap.Polyline({path:route.polyline,strokeColor:segment.color,strokeWeight:5,strokeStyle:segment.crossDay?'dashed':'solid'}));
+    }
+    if(lines.length)map.add(lines);
+  }
+  function report(){
+    const result=checkRoute(currentTrip(),{scope:mapScope,day:currentDay(),mode,routes:routeData});
+    const tone={error:'需调整',warning:'提醒',unknown:'待核实'};
+    openSheet('路线合理性校验',`<div class="note"><div><strong>${result.complete&&!result.issues.length?'当前数据中未发现时间或交通冲突':'请核对下面的安排'}</strong><p class="hint">${mapScope==='all'?'整体旅行':'当前第 '+(currentDay()+1)+' 天'} · ${mode==='driving'?'驾车':'步行'} · 已核实 ${result.checked}/${result.segments} 段交通</p></div></div><div class="stack section-space">${result.issues.map(issue=>`<article class="card flat"><span class="pill">${tone[issue.severity]}</span><p>${e(issue.text)}</p></article>`).join('')||'<p>停留与已知交通时间能够衔接。</p>'}</div><p class="hint section-space">道路时间按查询时刻估算，并额外预留驾车 10 分钟/步行 5 分钟缓冲。不核验营业时间、预约、天气、停车或临时封路；未匹配地点和查询失败不会标为通过。</p><div class="form-actions">${btn('关闭','close')}${btn('查询交通后复检','maps-recheck','soft')}${btn('问 AI 调整当天','ask-ai-adjust','primary','sparkles')}</div>`);
+  }
+  async function calculate(showReport=false){
+    if(calculating)return;
+    const op=mapAbort;if(!op){toast('请先等待地图加载');return;}
+    const view=routeScope(currentTrip(),mapScope,currentDay()),known=view.segments.filter(s=>s.known);
+    if(known.length>24){toast('整体路段较多，请切换到当天查询，每次最多计算 24 段');return;}
+    calculating=true;const version=++calculationVersion;let done=0,failed=0;
+    try{
+      for(const segment of known){
+        if(op.signal.aborted)return;const key=routeKey(segment,mode);
+        if(!routeData.has(key)||routeData.get(key).error){
+          try{routeData.set(key,{...await mapsRequest('route',{body:{origin:segment.from.place.location,destination:segment.to.place.location,mode},signal:op.signal}),queriedAt:new Date().toISOString()});}
+          catch(error){if(op.signal.aborted)return;routeData.set(key,{error:error.message});failed++;if(/频繁|次数|限额/.test(error.message))break;}
+        }
+        done++;message(`正在计算道路线路 ${done}/${known.length}…`);
+      }
+      if(op.signal.aborted)return;drawLines();
+      if(map&&lines.length)map.setFitView(lines,false,[45,45,45,45]);
+      message(`已查询 ${done} 段${failed?'，其中 '+failed+' 段未完成':''}；${view.missing.length?'还有 '+view.missing.length+' 个地点待确认':'道路时间仅供出行参考'}`);
+      if(showReport)report();
+    }finally{if(version===calculationVersion)calculating=false;}
   }
   async function mount(){
     dispose();const host=document.querySelector('#live-map');if(!host)return;
@@ -15,13 +51,14 @@ export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,current
     try{
       config=await mapsRequest('config',{signal:op.signal});if(op.signal.aborted)return;
       if(!config.ready){host.querySelector('.map-placeholder p').textContent='地图服务尚未配置';message(config.message);return;}
-      const t=currentTrip(),items=t.days[currentDay()].items;
+      const t=currentTrip(),view=routeScope(t,mapScope,currentDay()),items=view.points.map(p=>p.item);
       const [AMap,center]=await Promise.all([loadAMap(config),resolveMapCenter(t.city,items,{signal:op.signal})]);if(op.signal.aborted||!host.isConnected)return;
       host.replaceChildren();map=new AMap.Map(host,{center,zoom:12,viewMode:'2D',resizeEnable:true});
       const markers=[];
-      items.forEach((item,i)=>{if(!validPlace(item.place))return;const badge=document.createElement('div');badge.className='amap-stop-badge';badge.textContent=String(i+1);markers.push(new AMap.Marker({position:item.place.location,title:item.title,content:badge,anchor:'center'}));});
-      if(markers.length){map.add(markers);map.setFitView(markers,false,[45,45,45,45]);}
-      message(markers.length?`已确认 ${markers.length} 个高德点位；可查询相邻地点的步行或驾车路线`:'搜索并确认地点后，在这里显示真实点位');
+      view.points.forEach(point=>{const item=point.item;if(!validPlace(item.place))return;const badge=document.createElement('div');badge.className='amap-stop-badge';badge.style.background=point.color;badge.textContent=point.label;const marker=new AMap.Marker({position:item.place.location,title:`第 ${point.dayIndex+1} 天 · ${point.itemIndex+1}. ${item.title}`,content:badge,anchor:'center'});marker.on('click',()=>toast(`第 ${point.dayIndex+1} 天 · ${point.itemIndex+1}. ${item.title}`));markers.push(marker);});
+      if(markers.length){map.add(markers);map.setFitView(markers,false,[45,45,45,45]);}drawLines();
+      message(`已确认 ${markers.length}/${view.points.length} 个高德点位；${view.missing.length?'请在行程中匹配剩余地点':'可查询道路线路与校验时间衔接'}`);
+
     }catch(error){if(op.signal.aborted)return;message(error.message||'地图连接暂不可用');if(host.isConnected){host.replaceChildren();const n=document.createElement('p');n.className='map-placeholder';n.textContent='地图暂不可用，下方仍可使用外部导航';host.append(n);}}
   }
   function search(id=null,keyword=''){
@@ -51,21 +88,11 @@ export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,current
     }catch(err){if(!op.signal.aborted&&form.isConnected){node.textContent='';error.textContent=err.message||'地图查询失败，请稍后再试';}}
     finally{if(!op.signal.aborted&&form.isConnected)submit.disabled=false;}
   }
-  async function route(el){
-    const i=Number(el.dataset.index),items=currentTrip().days[currentDay()].items,from=items[i-1]?.place,to=items[i]?.place;
-    if(!validPlace(from)||!validPlace(to))return;
-    const node=document.querySelector('#route-'+i),op=mapAbort;if(!op||node.dataset.loading)return;node.dataset.loading='true';const buttons=node.parentElement.querySelectorAll('[data-action="maps-route"]');buttons.forEach(b=>b.disabled=true);node.textContent='正在查询路线…';
-    try{
-      const data=await mapsRequest('route',{body:{origin:from.location,destination:to.location,mode:el.dataset.mode},signal:op.signal});if(op.signal.aborted||!node.isConnected)return;
-      node.textContent=`${data.mode==='walking'?'步行':'驾车'}约 ${(data.distance/1000).toFixed(1)} 公里${data.duration===null?'':' · '+Math.ceil(data.duration/60)+' 分钟'}，仅供出行参考`;
-      if(map&&globalThis.AMap){if(routeLine)map.remove(routeLine);routeLine=null;if(data.polyline.length>1){routeLine=new globalThis.AMap.Polyline({path:data.polyline,strokeColor:'#16745c',strokeWeight:5});map.add(routeLine);map.setFitView([routeLine]);}}
-    }catch(error){if(!op.signal.aborted&&node.isConnected)node.textContent=error.message||'未能查询此路段';}
-    finally{delete node.dataset.loading;buttons.forEach(b=>{if(b.isConnected)b.disabled=false;});}
-  }
-  return {page,mount,dispose,search,handleSubmit(form){if(form.dataset.form!=='maps-search')return false;submit(form);return true;},actions:{
+  return {panel,mount,dispose,search,setScope(value){mapScope=value;},handleSubmit(form){if(form.dataset.form!=='maps-search')return false;submit(form);return true;},actions:{
     'maps-search':()=>search(), 'maps-match':el=>{const item=currentTrip().days[currentDay()].items.find(x=>x.id===el.dataset.id);if(item)search(item.id,item.title);},
     'maps-pick':el=>{const p=results[Number(el.dataset.index)];if(!validPlace(p))return;const id=targetId;cancelSearch();focused=null;onPick(p,id);},
     'maps-locate':locate,'maps-clear-location':()=>{locationAttempt++;focused=null;const n=sheet.querySelector('#maps-location-status');if(n)n.textContent='已改用城市搜索，不使用当前位置';},
-    'maps-reload':mount,'maps-route':route
+    'maps-scope':el=>{mapScope=el.dataset.scope;rerender();},'maps-mode':el=>{mode=el.dataset.mode;rerender();},'maps-calculate':()=>calculate(false),'maps-audit':report,'maps-recheck':()=>calculate(true),
+    'maps-reload':mount
   }};
 }

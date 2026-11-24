@@ -49,6 +49,7 @@ async function quota(env,request,requestId){
   const ip=bytesToBase64(new Uint8Array(hash)).slice(0,24);
   const duplicate=await env.DB.prepare('INSERT OR IGNORE INTO ai_requests(id,created_at) VALUES(?,?) RETURNING id').bind(requestId,now).first();
   if(!duplicate)throw new ServiceError('这次生成已经提交，请勿重复发送',409);
+  if(env.AI_UNLIMITED==='true'){await env.DB.prepare('DELETE FROM ai_requests WHERE created_at < ?').bind(now-172800).run();return;}
   // D1 performs each UPSERT atomically. The global reservation happens before any paid call.
   const daily=Math.min(200,Math.max(1,Number(env.AI_DAILY_LIMIT)||20));
   const perHour=Math.min(20,Math.max(1,Number(env.AI_HOURLY_IP_LIMIT)||3));
@@ -133,3 +134,5 @@ export function createWorker(fetcher=fetch){return {async fetch(request,env){
   }catch(err){return json({message:err instanceof ServiceError?err.message:'AI 服务暂不可用，请稍后再试'},err instanceof ServiceError?err.status:500,headers);}
 }};}
 export default createWorker();
+
+export {quota,getSavedKey};

@@ -8,7 +8,7 @@ export async function getAIStatus(fetcher=fetch,base=AI_BASE) {
   if(!res.ok)throw new Error('AI 服务暂不可用');
   const body=await res.json();
   if(typeof body.ready!=='boolean')throw new Error('AI 服务返回了无效状态');
-  return {ready:body.ready,model:typeof body.model==='string'?body.model:'DeepSeek',message:typeof body.message==='string'?body.message:'',maxDays:7};
+  return {ready:body.ready,model:typeof body.model==='string'?body.model:'DeepSeek',message:typeof body.message==='string'?body.message:'',maxDays:7,features:{chat:body.features?.chat===true}};
 }
 export async function requestAIPlan(input,{signal,fetcher=fetch,base=AI_BASE}={}) {
   if(!base)throw new Error('AI 后端正在迁移部署，请稍后再试');

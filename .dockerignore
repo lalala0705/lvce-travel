@@ -11,3 +11,5 @@
 !backend/tencent/Dockerfile
 !backend/tencent/server.mjs
 !backend/tencent/maps.mjs
+!dist/chat-schema.js
+!backend/tencent/chat.mjs

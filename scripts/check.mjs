@@ -1,6 +1,6 @@
 import {readFile,stat} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
-for(const path of ['dist/index.html','dist/styles.css','dist/app.js','dist/domain.js','dist/ai-schema.js','dist/ai-api.js','dist/ai-planner.js','dist/maps-api.js','dist/maps-ui.js','dist/place-schema.js','dist/icon.svg','dist/manifest.webmanifest']){if(!(await stat(path)).size)throw new Error(`Empty asset: ${path}`);}
-for(const path of ['dist/app.js','dist/domain.js','dist/ai-schema.js','dist/ai-api.js','dist/ai-planner.js','dist/maps-api.js','dist/maps-ui.js','dist/place-schema.js','backend/worker/index.js','scripts/serve.mjs'])execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+for(const path of ['dist/index.html','dist/styles.css','dist/app.js','dist/domain.js','dist/ai-schema.js','dist/ai-api.js','dist/ai-planner.js','dist/conversation-ui.js','dist/chat-api.js','dist/chat-schema.js','dist/revision.js','dist/route-check.js','dist/discovery-ui.js','dist/maps-api.js','dist/maps-ui.js','dist/place-schema.js','dist/icon.svg','dist/manifest.webmanifest']){if(!(await stat(path)).size)throw new Error(`Empty asset: ${path}`);}
+for(const path of ['dist/app.js','dist/domain.js','dist/ai-schema.js','dist/ai-api.js','dist/ai-planner.js','dist/conversation-ui.js','dist/chat-api.js','dist/chat-schema.js','dist/revision.js','dist/route-check.js','dist/discovery-ui.js','dist/maps-api.js','dist/maps-ui.js','dist/place-schema.js','backend/worker/index.js','backend/tencent/server.mjs','backend/tencent/chat.mjs','scripts/serve.mjs'])execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 JSON.parse(await readFile('dist/manifest.webmanifest','utf8'));
 console.log('Buildless static application verified. Deploy directory: dist/');

@@ -22,3 +22,18 @@ dialog{padding:0;border:0;border-radius:24px;width:min(560px,calc(100% - 32px));
 #maps-results{max-height:55vh;overflow:auto}#maps-results h3{margin-top:10px}#maps-results p{overflow-wrap:anywhere}
 @media(max-width:700px){.live-map{height:340px}.nearby-entry{align-items:flex-start;flex-direction:column}.nearby-entry .btn{width:100%}}
 .map-page .map-summary{display:block}
+
+/* Unified planning and real trip routes. */
+.route-map .map-tools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:14px}
+.segmented{display:flex;gap:6px;flex-wrap:wrap}.segmented .btn{min-height:40px;font-size:.8125rem;padding:7px 12px}
+.route-map .live-map{border-radius:0;height:420px}.trip-page .map-summary{display:block;padding:16px}.route-map .form-actions{position:static;background:transparent;padding-top:10px}
+.map-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:.75rem;color:var(--muted);margin:10px 0}.map-legend span{display:flex;align-items:center;gap:5px}.map-legend i{width:9px;height:9px;border-radius:50%}
+.amap-stop-badge{width:36px;height:30px;border-radius:12px;font-size:12px}.stop-place-line{margin:-14px 0 20px 70px;overflow-wrap:anywhere}.stop-place-line .btn{font-size:.75rem;min-height:30px;padding:2px 6px}
+.trip-page .day-title{align-items:flex-start}.trip-page .day-title>.btn{font-size:.75rem;white-space:nowrap}
+.chat-transcript{display:flex;flex-direction:column;gap:14px;margin-top:24px}.chat-bubble{max-width:90%;padding:16px 18px;border-radius:16px;background:white;border:1px solid var(--line);overflow-wrap:anywhere}
+.chat-bubble p{white-space:pre-wrap;line-height:1.8;margin-top:5px}.chat-bubble.user{align-self:flex-end;background:#e8f2e9}.chat-bubble.assistant{align-self:flex-start}.chat-welcome .choices{margin-top:14px}
+#conversation-page{max-width:900px;margin:auto}.chat-conditions summary{cursor:pointer;color:var(--green);font-weight:600}.chat-draft{margin-top:24px;border-color:#90baa4}.chat-draft .note{margin-top:18px}
+#conversation-page [data-form="conversation"] .form-actions{position:static}.chat-draft .form-actions{position:static}.provider-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.provider-card{display:block}
+.discovery-page .provider-card{padding:18px}.discovery-page .form-actions{position:static;background:transparent}.nav button{min-width:0;flex:1}.nav-inner{gap:0}.nav button{font-size:.6875rem}
+@media(max-width:700px){.trip-page .map-panel{order:0}.trip-page .route-map.card{background:white;border:1px solid var(--line)}.route-map .live-map{height:320px}.trip-page .map-panel .map-summary{display:block}.trip-page .day-title{gap:8px}.trip-page .day-title h2{font-size:1rem}.stop-place-line{margin-left:60px}.trip-page .action-bar{flex-wrap:wrap}.trip-page .action-bar .btn{font-size:.75rem}.provider-grid{grid-template-columns:1fr}.chat-bubble{max-width:100%;padding:13px 15px}.chat-conditions summary{font-size:.875rem}.route-map .map-tools{padding:10px}.segmented .btn{padding:7px 9px}.trip-page .map-panel{position:static}.map-legend{gap:8px}}
+#conversation-page fieldset{border:0;padding:0;margin:0;min-width:0}

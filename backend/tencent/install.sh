@@ -72,10 +72,18 @@ if marker not in text:
         proxy_read_timeout 110s;
         proxy_send_timeout 20s;
         proxy_buffering off;
-        client_max_body_size 16k;
+        client_max_body_size 64k;
     }
 '''
     text=text[:match.end()]+route+text[match.end():]
+else:
+    pattern=r'(# lvce-ai managed route\s+location\s+\^~\s+/lvce-ai/\s*\{)([^{}]*)(\})'
+    def update(match):
+        body,count=re.subn(r'client_max_body_size\s+[^;]+;', 'client_max_body_size 64k;', match[2])
+        if count!=1: raise SystemExit('现有地图/AI 路由大小配置不符合预期，未修改 Nginx')
+        return match[1]+body+match[3]
+    text,count=re.subn(pattern,update,text,count=1)
+    if count!=1: raise SystemExit('未找到完整的已管理 AI 路由，未修改 Nginx')
 Path(sys.argv[2]).write_text(text)
 PY
 if docker image inspect lvce-ai:current >/dev/null 2>&1; then docker tag lvce-ai:current lvce-ai:previous; fi

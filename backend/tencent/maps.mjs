@@ -79,6 +79,8 @@ export function createMaps({db,salt,jsKey='',webKey='',securityCode='',fetcher=f
         const raw=await input(request);
         if(typeof raw.keywords!=='string'||!raw.keywords.trim()||raw.keywords.length>60)throw new MapError('请输入 1–60 字的地点或活动名称');
         const keywords=raw.keywords.trim();let center=null;
+        if(raw.category!==undefined&&!['food','stay'].includes(raw.category))throw new MapError('地点分类无效');
+        const typeFilter=raw.category?{types:raw.category==='food'?'050000':'100000'}:{};
         const radius=raw.radius??10000;if(!Number.isInteger(radius)||radius<1000||radius>50000)throw new MapError('周边范围为 1–50 公里');
         if(raw.gps!==undefined){
           const gps=coordinate(raw.gps);
@@ -87,10 +89,10 @@ export function createMaps({db,salt,jsKey='',webKey='',securityCode='',fetcher=f
         }else if(raw.location!==undefined)center=coordinate(raw.location);
         let data;
         if(center){
-          data=await upstream('/v5/place/around',{keywords,location:center.join(','),radius:String(radius),sortrule:'distance',page_size:'10',page_num:'1'},request);
+          data=await upstream('/v5/place/around',{...typeFilter,keywords,location:center.join(','),radius:String(radius),sortrule:'distance',page_size:'10',page_num:'1'},request);
         }else{
           if(typeof raw.city!=='string'||!raw.city.trim()||raw.city.length>30)throw new MapError('请填写搜索城市，或主动选择使用当前位置');
-          data=await upstream('/v5/place/text',{keywords,region:raw.city.trim(),city_limit:'true',page_size:'10',page_num:'1'},request);
+          data=await upstream('/v5/place/text',{...typeFilter,keywords,region:raw.city.trim(),city_limit:'true',page_size:'10',page_num:'1'},request);
         }
         return json({places:(Array.isArray(data.pois)?data.pois:[]).slice(0,10).map(place).filter(Boolean),source:'amap',coordinateSystem:'GCJ-02',nearby:!!center});
       }

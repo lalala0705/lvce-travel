@@ -1,8 +1,8 @@
 # 腾讯云轻量服务器部署
 
-现有 Nginx 和 HTTPS 保留；AI 容器监听 `127.0.0.1:8787`，挂载持久 SQLite 数据目录。仅公开 `/lvce-ai/api/status` 和 `/lvce-ai/api/generate`，映射到后端 `/api/*`。不提供网页密钥管理，也不依赖 ChatGPT Sites 身份或托管。
+现有 Nginx 和 HTTPS 保留；AI 容器监听 `127.0.0.1:8787`，挂载持久 SQLite 数据目录。公开 `/lvce-ai/api/status`、`/lvce-ai/api/generate`、`/lvce-ai/api/chat` 及地图接口，映射到后端 `/api/*`。不提供网页密钥管理，也不依赖 ChatGPT Sites 身份或托管。
 
-DeepSeek Key 通过服务器本地隐藏输入写入 `/opt/lvce-ai/service.env`（root:root 0600），不要提交到仓库或聊天。用量限额固定为北京时间每日 20 次和每个 IP 每小时 3 次；请求失败也消耗试用次数，不自动重试。数据目录包含加密密钥和配额，必须保留，不能通过重建容器重置额度。容器只有 Nginx 能通过主机端口访问，Nginx 必须覆盖 `X-Real-IP`。
+DeepSeek Key 通过服务器本地隐藏输入写入 `/opt/lvce-ai/service.env`（root:root 0600），不要提交到仓库或聊天。用户明确选择不限制 AI 次数后，生产启动入口设置 `unlimitedAI:true`，不再限制生成/对话每日和每小时次数；DeepSeek 账户自身额度与计费照常适用。保留 requestId 去重，不自动重试。测试/底层 Worker 未开启此标志时仍可验证原限额逻辑。数据目录包含加密密钥和配额，必须保留，不能通过重建容器重置额度。容器只有 Nginx 能通过主机端口访问，Nginx 必须覆盖 `X-Real-IP`。
 
 `install.sh` 需 root 执行，参数为解压后的源码根目录。安装脚本校验 Docker、端口、Nginx 配置；备份当前站点；构建容器；只添加独立 `/lvce-ai/` 路由；通过 `nginx -t` 后 reload。旧网页、8000 端口和数据库不变。重复运行更新现有容器，复用配置、Key 和数据；不拉取或执行远端脚本。
 
@@ -31,3 +31,9 @@ bash backend/tencent/install.sh "$PWD"
 环境变量为 `AMAP_JS_KEY`、`AMAP_SECURITY_CODE`、`AMAP_WEB_KEY`。只有 JS Key 通过 `/api/maps/config` 返回给指定网页 Origin，另两项不返回。`/api/maps/search` 支持城市文本与自愿提交 GPS 的周边搜索；GPS 通过高德转换为 GCJ-02 后查询。`/api/maps/route` 支持步行/驾车。`/_AMapService/` 只代理列明的 SDK 地图样式、行政区、地理编码和地点相关路径，目标为固定高德域名。
 
 接口配额与 AI 独立持久保存。REST 每天 1000 次、每 IP 每小时 60 次；SDK 代理每天 2000 次、每 IP 每小时 300 次。无请求正文或精确位置日志。候选地点、GPS 不在服务器长期保存；POI 信息只有用户确认保存后才进入本机旅行记录。前端按需加载地图，SDK 和地图瓦片请求仍由高德处理。
+
+## 0.4 对话与行程调整升级
+
+复用 `/opt/lvce-ai/service.env` 和数据目录，在新源码目录执行安装脚本即可，不需重新填写 Key。`/api/status` 返回 `features.chat:true` 表示新对话入口已部署。前端据此判断能力；旧服务不会被冒充为已经支持对话。
+
+对话复用固定 DeepSeek 模型与凭证，只接受白名单条件、最多 6 条短历史和选定一天的非私人行程摘要。候选地点通过真实高德搜索产生，不采用模型伪造候选；不进行支付、库存承诺或第三方 Cookie 代理。对话结果先通过结构检查，前端再校验一次，应用当天草稿时检查原数据签名并保留账单和其他天。

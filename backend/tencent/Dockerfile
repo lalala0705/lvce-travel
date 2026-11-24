@@ -3,8 +3,10 @@ ENV NODE_ENV=production PORT=8787 DATA_DIR=/data
 WORKDIR /app
 COPY package.json ./
 COPY dist/ai-schema.js ./dist/ai-schema.js
+COPY dist/chat-schema.js ./dist/chat-schema.js
 COPY backend/worker/index.js ./backend/worker/index.js
 COPY backend/drizzle/0000_ai.sql ./backend/drizzle/0000_ai.sql
+COPY backend/tencent/chat.mjs ./backend/tencent/chat.mjs
 COPY backend/tencent/maps.mjs ./backend/tencent/maps.mjs
 COPY backend/tencent/server.mjs ./backend/tencent/server.mjs
 RUN chmod -R a+rX /app && mkdir /data && chown node:node /data

@@ -77,3 +77,13 @@ test('map view centers on confirmed POIs or actual city search data and never a 
   await resolveMapCenter('定位测试城市',[],{request});assert.equal(calls,1);
   await assert.rejects(()=>resolveMapCenter('不存在的城市',[],{request:async()=>({places:[]})}),/确认一个具体地点/);
 });
+
+test('food and stay searches use fixed AMap categories, rejecting unsupported categories before upstream calls',async()=>{
+  const types=[];const service=await fixture(async(url)=>{types.push(new URL(url).searchParams.get('types'));return json({status:'1',pois:[]});});
+  try{
+    assert.equal((await service.fetch(request('/api/maps/search',{city:'广州',keywords:'美食',category:'food',types:'caller-controlled'}))).status,200);
+    assert.equal((await service.fetch(request('/api/maps/search',{city:'广州',keywords:'酒店',category:'stay'}))).status,200);
+    assert.equal((await service.fetch(request('/api/maps/search',{city:'广州',keywords:'酒店',category:'unsupported'}))).status,400);
+    assert.deepEqual(types,['050000','100000']);
+  }finally{service.close();}
+});
