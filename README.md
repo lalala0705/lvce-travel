@@ -26,6 +26,14 @@ npm run build
 
 源码直接位于 `dist/`，可部署到任何静态托管平台。`scripts/serve.mjs` 仅供本地开发；部署时使用正式静态托管。
 
+## GitHub Pages 部署
+
+仓库内已配置 `.github/workflows/pages.yml`：推送至 `main` 后，自动运行测试、检查静态资源，并只发布 `dist/`，不会发布源码、测试或托管配置。
+
+首次启用：仓库 **Settings → Pages → Build and deployment → Source → GitHub Actions**。之后到 **Actions → Deploy GitHub Pages → Run workflow** 发起第一次部署；后续推送会自动更新。最终访问地址以该工作流的 `github-pages` environment 链接为准。
+
+GitHub Free 需要公开仓库才能使用 Pages；私有仓库需要支持该功能的付费计划。Pages 网站公开访问，不要求登录 ChatGPT。不同域名的浏览器存储互不相通，从其他体验地址迁移时，可先导出 JSON 备份再在新地址导入。
+
 ## 数据说明
 
 数据保存在当前浏览器的 `localStorage`，不上传账单，不自动跨设备同步。初始杭州行程与消费为可修改的示例。新建旅行不会继承示例账单。
