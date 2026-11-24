@@ -1,0 +1,6 @@
+{
+  "name":"lvce-ai-service",
+  "private":true,
+  "type":"module",
+  "scripts":{"build":"node build.mjs"}
+}

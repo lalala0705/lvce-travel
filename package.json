@@ -1,6 +1,6 @@
 {
   "name": "lvce-travel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "旅策：手机优先的旅行规划与费用分摊工具",
@@ -9,5 +9,5 @@
     "test": "node --test tests/*.test.mjs",
     "build": "node scripts/check.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=22.13" }
 }
