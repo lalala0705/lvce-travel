@@ -98,8 +98,18 @@ changed_site=true
 cp /opt/lvce-ai/nginx.candidate "$site"
 if ! nginx -t; then cp -p "$backup" "$site"; echo "Nginx 校验失败，已恢复配置：$backup"; exit 1; fi
 if ! systemctl reload nginx; then cp -p "$backup" "$site"; nginx -t && systemctl reload nginx; echo 'reload 失败，已恢复配置'; exit 1; fi
+# Reload is asynchronous: wait for new workers, and reject an old SPA HTML response.
+route_ok=false
+for ((i=0;i<10;i++)); do
+  if curl -fsS --max-time 10 --resolve kuaitrip.cn:443:127.0.0.1 https://kuaitrip.cn/lvce-ai/api/status -o /opt/lvce-ai/status.json &&
+    python3 -c 'import json; v=json.load(open("/opt/lvce-ai/status.json")); assert type(v.get("ready")) is bool'; then
+    route_ok=true; break
+  fi
+  sleep 1
+done
+[[ "$route_ok" == true ]] || { echo 'HTTPS 路由检查失败，恢复原配置'; exit 1; }
+installed=true
 echo "安装完成。Nginx 配置：$site；备份：$backup"
 echo '服务状态（不调用付费模型）：'
-curl -fsS --max-time 10 --resolve kuaitrip.cn:443:127.0.0.1 https://kuaitrip.cn/lvce-ai/api/status
+cat /opt/lvce-ai/status.json
 echo
-installed=true
