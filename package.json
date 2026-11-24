@@ -1,6 +1,6 @@
 {
   "name": "lvce-travel",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "旅策：手机优先的旅行规划与费用分摊工具",

@@ -1,4 +1,4 @@
-import {mapsRequest,loadAMap,validPlace,placeLink,resolveMapCenter} from './maps-api.js';
+import {mapsRequest,loadAMap,validPlace,placeLink,resolveMapCenter} from './maps-api.js?v=0.3.1';
 export function createMapFeature({sheet,e,btn,icon,openSheet,field,toast,currentTrip,currentDay,onPick}){
   let map=null,mapAbort=null,searchAbort=null,config=null,results=[],targetId=null,focused=null,routeLine=null,locationAttempt=0;
   const message=s=>{const n=document.querySelector('#live-map-status');if(n)n.textContent=s;};
